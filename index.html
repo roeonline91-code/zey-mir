@@ -1,1 +1,541 @@
 
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090b18">
+<title>ZEYMİR Arcade</title>
+<style>
+:root{--bg:#090b18;--panel:#171d36;--cyan:#42f5e9;--pink:#ff4fd8;--purple:#9b6cff;--text:#f4f5ff;--muted:#a7aecb}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 15% 0%,#24204a,transparent 42%),radial-gradient(ellipse at 90% 15%,#172d46,transparent 38%),var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh}
+header{text-align:center;padding:30px 15px 22px;background:#080a16aa;border-bottom:1px solid #ffffff14}
+.logo{font-size:clamp(30px,7vw,48px);font-weight:900;letter-spacing:2px;text-shadow:0 0 15px #ff4fd888,0 0 30px #42f5e955}
+.logo span{color:var(--pink)}
+.sub{color:var(--muted);font-size:14px}
+.wrap{max-width:1100px;margin:auto;padding:20px 14px 60px}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+.search{flex:1;min-width:0;background:#12162a;border:1px solid #343b60;border-radius:13px;color:white;padding:13px;font-size:16px}
+.count{color:var(--muted);font-size:13px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.game{background:linear-gradient(145deg,#171d36,#101426);border:1px solid #343b60;border-radius:17px;padding:17px 13px;min-height:140px;text-align:left;color:white;cursor:pointer;box-shadow:0 7px 22px #0003}
+.game:active{transform:scale(.97)}
+.game:hover{border-color:var(--cyan);box-shadow:0 0 18px #42f5e933}
+.emoji{font-size:29px;display:block;margin-bottom:10px}
+.game b{font-size:14px;display:block}
+.game small{color:var(--muted);display:block;margin-top:5px;line-height:1.35}
+footer{text-align:center;color:#777f9e;font-size:12px;padding:30px 10px}
+.modal{display:none;position:fixed;inset:0;background:#050611ed;z-index:5;padding:14px;overflow:auto}
+.modal.show{display:flex;align-items:flex-start;justify-content:center}
+.box{width:min(650px,100%);margin:auto;background:linear-gradient(145deg,#171d36,#0e1223);border:1px solid #465078;border-radius:20px;padding:18px;box-shadow:0 0 35px #42f5e922}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.top h2{font-size:21px;margin:0}
+#stage{min-height:230px;text-align:center}
+.desc{color:var(--muted);font-size:14px;margin:0 0 14px}
+button{background:linear-gradient(90deg,#8c56ff,#ed4ecb);border:0;color:white;border-radius:11px;padding:11px 15px;font-weight:750;font-size:14px;cursor:pointer;margin:4px}
+button.secondary{background:#2b3457}
+button.good{background:linear-gradient(90deg,#00a878,#3ccfba)}
+.close{background:#2b3150;font-size:18px}
+input{background:#090d1d;color:white;border:1px solid #4b557e;border-radius:10px;padding:11px;font-size:16px;max-width:100%}
+.big{font-size:38px;font-weight:900;margin:12px}
+.score{color:var(--cyan);font-weight:800;margin:10px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;max-width:340px;margin:15px auto}
+.tile{aspect-ratio:1;background:#273052;border-radius:10px;display:grid;place-items:center;font-size:22px;font-weight:900}
+.board{display:grid;gap:6px;justify-content:center;margin:12px auto}
+.cell{width:clamp(42px,12vw,65px);height:clamp(42px,12vw,65px);background:#252d4d;border:1px solid #414c76;font-size:22px}
+canvas{max-width:100%;background:#080d1d;border:1px solid #465078;border-radius:12px;touch-action:none}
+.choices{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin:14px 0}
+.molegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-width:330px;margin:15px auto}
+.hole{aspect-ratio:1;border-radius:50%;background:#252d4d;font-size:32px}
+@media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo">ZEYMİR <span>❤️</span> ARCADE</div>
+ <p class="sub">EMİRHAN ❤️ ZEYNEP · 21 mini oyun · Tek cihazda eğlence</p>
+</header>
+<main class="wrap">
+ <div class="toolbar">
+  <input class="search" id="search" placeholder="Oyun ara...">
+  <span class="count" id="count">21 oyun</span>
+ </div>
+ <section class="grid" id="games"></section>
+ <footer>Made with ❤️ · Emirhan & Zeynep</footer>
+</main>
+<div class="modal" id="modal">
+ <div class="box">
+  <div class="top">
+   <h2 id="gameTitle">Oyun</h2>
+   <button class="close" onclick="closeGame()">✕</button>
+  </div>
+  <div id="stage"></div>
+ </div>
+</div>
+<script>
+const games=[
+['love','💘','Aşk Testi','Birbirinize ne kadar uyumlusunuz?'],
+['memory','🧠','Hafıza Oyunu','Kart eşlerini bul'],
+['heart','💗','Kalp Yakalama','Kalpleri yakala'],
+['couple','💑','Birbirimizi Tanıyalım','Birbiriniz hakkındaki sorular'],
+['snake','🐍','Yılan Oyunu','Yemleri topla, büyü'],
+['xo','❌','XOX','Sırayla üçlü yap'],
+['tetris','🧱','Tetris','Blokları diz'],
+['race','🏎️','Araba Yarışı','Engellerden kaç'],
+['space','🚀','Uzay Savaşı','Uzaylıları vur'],
+['mole','🐹','Köstebek Yakala','Köstebeği yakala'],
+['2048','🔢','2048','Sayıları birleştir'],
+['word','🔤','Kelime Tahmin','Gizli kelimeyi bul'],
+['reflex','⚡','Refleks Testi','Hızını ölç'],
+['quiz','🌍','Genel Kültür','Bilgini sına'],
+['song','🎵','Şarkıyı Tahmin Et','İpuçlarından şarkıyı bul'],
+['breakout','🎮','Tuğla Kırma','Topla tuğlaları parçala'],
+['mine','💣','Mayın Tarlası','Mayınsız kareleri aç'],
+['pong','🏓','Pong','Topu karşıya geçir'],
+['dice','🎲','Zar Atma','Şansını dene'],
+['colors','🌈','Renk Hafızası','Renk dizisini hatırla'],
+['truth','🔥','Aşk mı Cesaret mi','Birbirinize meydan okuyun']
+];
+const $=s=>document.querySelector(s);
+const stage=$('#stage');
+let cleanup=null;
+
+function draw(){
+ let q=$('#search').value.toLocaleLowerCase('tr');
+ let arr=games.filter(g=>(g[2]+' '+g[3]).toLocaleLowerCase('tr').includes(q));
+ $('#count').textContent=arr.length+' oyun';
+ $('#games').innerHTML=arr.map(g=>`<button class="game" onclick="launch('${g[0]}')"><span class="emoji">${g[1]}</span><b>${g[2]}</b><small>${g[3]}</small></button>`).join('');
+}
+$('#search').addEventListener('input',draw);
+draw();
+
+function openGame(id){
+ let g=games.find(x=>x[0]===id);
+ $('#gameTitle').textContent=g[1]+' '+g[2];
+ $('#modal').classList.add('show');
+ stage.innerHTML='';
+ if(cleanup){cleanup();cleanup=null}
+}
+function closeGame(){
+ if(cleanup){cleanup();cleanup=null}
+ $('#modal').classList.remove('show');
+}
+function say(t){stage.innerHTML=t}
+function btn(t,fn,cls=''){
+ let b=document.createElement('button');
+ b.textContent=t;
+ if(cls)b.className=cls;
+ b.onclick=fn;
+ stage.appendChild(b);
+ return b;
+}
+function score(t){
+ let d=document.createElement('div');
+ d.className='score';
+ d.textContent=t;
+ stage.appendChild(d);
+}
+function launch(id){
+ openGame(id);
+ const handlers={
+ love,memory,heart,couple,snake,xo,tetris,race,space,mole,
+ '2048':game2048,word,reflex,quiz,song,breakout,mine,pong,dice,colors,truth
+ };
+ (handlers[id]||love)();
+}
+
+function love(){
+ say('<p class="desc">İkiniz de cevaplayın, bakalım ne kadar uyumlusunuz?</p><div class="big">❤️</div><p>Birlikte en sevdiğiniz şey nedir?</p>');
+ ['Gezmek','Film izlemek','Oyun oynamak','Hepsi!'].forEach(x=>btn(x,()=>{
+  say('<div class="big">💞</div><h3>En güzel cevap: birlikte olmak!</h3><p class="desc">Uyum puanınız: %100 (eğlence amaçlı)</p>');
+  btn('Tekrar oyna',love);
+ }));
+}
+
+function memory(){
+ let a=['🍓','🍋','🍇','🍉','🍒','🥝','🍍','🍑'];
+ a=[...a,...a].sort(()=>Math.random()-.5);
+ let first=null,lock=false,done=0,moves=0;
+ say('<p class="desc">Aynı emojileri eşleştir. Az hamle daha iyi!</p><div class="tiles" id="mem"></div>');
+ let root=$('#mem');
+ a.forEach(v=>{
+  let b=document.createElement('button');
+  b.className='tile';b.textContent='?';
+  b.onclick=()=>{
+   if(lock||b.dataset.done||b===first)return;
+   b.textContent=v;
+   if(!first){first=b;return}
+   moves++;
+   if(first.textContent===v){
+    first.dataset.done=1;b.dataset.done=1;done+=2;first=null;
+    if(done===16)score('Tamamlandı! Hamle: '+moves);
+   }else{
+    lock=true;let f=first;
+    setTimeout(()=>{f.textContent='?';b.textContent='?';first=null;lock=false},650);
+   }
+  };
+  root.appendChild(b);
+ });
+}
+
+function heart(){
+ let s=0,t=20;
+ say('<p class="desc">20 saniyede kalplere dokun!</p><div class="big" id="hs">0 ❤️</div><button id="catch" class="good">💗 YAKALA</button><p id="time">20 saniye</p>');
+ let b=$('#catch');
+ let iv=setInterval(()=>{
+  t--;$('#time').textContent=t+' saniye';
+  b.style.transform=`translate(${Math.random()*30-15}px,${Math.random()*12-6}px)`;
+  if(t<=0){clearInterval(iv);b.disabled=true;score('Skorun: '+s)}
+ },1000);
+ b.onclick=()=>{$('#hs').textContent=(++s)+' ❤️'};
+ cleanup=()=>clearInterval(iv);
+}
+
+function couple(){
+ let qs=['En sevdiği yemek ne?','En çok gitmek istediği yer neresi?','En sevdiği renk ne?','En çok neye güler?','İlk buluşmanızda ne hissetmiştiniz?'];
+ let i=0;
+ say('<p class="desc">Soruları sırayla cevaplayın.</p><div class="big" id="cq"></div>');
+ function next(){
+  $('#cq').textContent=qs[i];
+  i++;
+ }
+ next();
+ btn('Sonraki soru',()=>{
+  if(i<qs.length)next();
+  else{score('Bütün sorular bitti ❤️');btn('Baştan',couple)}
+ });
+}
+
+function xo(){
+ let a=Array(9).fill(''),turn='X',over=false;
+ say('<p class="desc">İki kişi sırayla oynayın · X başlar</p><div class="board" id="xb" style="grid-template-columns:repeat(3,1fr)"></div>');
+ let root=$('#xb');
+ function check(){
+  let wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return wins.some(w=>a[w[0]]&&a[w[0]]===a[w[1]]&&a[w[1]]===a[w[2]]);
+ }
+ a.forEach((v,i)=>{
+  let b=document.createElement('button');b.className='cell';
+  b.onclick=()=>{
+   if(a[i]||over)return;
+   a[i]=turn;b.textContent=turn;
+   if(check()){over=true;score(turn+' kazandı!');btn('Tekrar',xo)}
+   else if(a.every(Boolean)){over=true;score('Berabere!');btn('Tekrar',xo)}
+   else turn=turn==='X'?'O':'X';
+  };
+  root.appendChild(b);
+ });
+}
+
+function game2048(){
+ let a=Array(16).fill(0);
+ function spawn(){
+  let e=a.map((v,i)=>v?null:i).filter(v=>v!==null);
+  if(e.length)a[e[Math.random()*e.length|0]]=Math.random()<.9?2:4;
+ }
+ spawn();spawn();
+ say('<p class="desc">Aynı sayıları birleştir. Okları kullan.</p><div class="tiles" id="g2048"></div><div class="choices"><button onclick="move2048(0)">↑</button><button onclick="move2048(2)">←</button><button onclick="move2048(3)">→</button><button onclick="move2048(1)">↓</button></div>');
+ window.move2048=dir=>{
+  let old=a.join();
+  for(let n=0;n<4;n++){
+   let ids=Array.from({length:4},(_,i)=>dir===0?i*4+n:dir===1?(3-i)*4+n:dir===2?n*4+i:n*4+3-i);
+   let v=ids.map(i=>a[i]).filter(Boolean);
+   for(let j=0;j<v.length-1;j++)if(v[j]===v[j+1]){v[j]*=2;v.splice(j+1,1)}
+   while(v.length<4)v.push(0);
+   ids.forEach((id,j)=>a[id]=v[j]);
+  }
+  if(old!==a.join())spawn();
+  $('#g2048').innerHTML=a.map(v=>`<div class="tile" style="background:${v?'#51417c':'#202944'}">${v||''}</div>`).join('');
+  if(a.includes(2048))score('2048! Kazandın!');
+ };
+ move2048(0);
+}
+
+function word(){
+ let words=['ZEYNEP','EMİRHAN','SEVGİ','KALP','İSTANBUL','MUTLULUK'];
+ let w=words[Math.random()*words.length|0],guessed=[],tries=7;
+ say('<p class="desc">Bir harf yaz. 7 yanlış hakkın var.</p><div class="big" id="wshow"></div><input id="letter" maxlength="1" placeholder="Harf"><button id="guess">Tahmin et</button><p id="tries"></p>');
+ function upd(){
+  $('#wshow').textContent=[...w].map(c=>guessed.includes(c)?c:'_').join(' ');
+  $('#tries').textContent='Kalan hak: '+tries;
+ }
+ upd();
+ $('#guess').onclick=()=>{
+  let c=$('#letter').value.trim().toLocaleUpperCase('tr');
+  $('#letter').value='';
+  if(!c)return;
+  if(!w.includes(c))tries--;else guessed.push(c);
+  upd();
+  if([...w].every(x=>guessed.includes(x))){score('Bildin! ❤️');btn('Yeni kelime',word)}
+  else if(tries<=0){score('Kelime: '+w);btn('Tekrar',word)}
+ };
+}
+
+function reflex(){
+ say('<p class="desc">Başlat’a bas. Ekran yeşile dönünce hemen dokun!</p><button id="start">Başlat</button><div class="big" id="rbox">⚡</div>');
+ let timer,started=0,ready=false;
+ $('#start').onclick=()=>{
+  ready=false;$('#rbox').textContent='Bekle...';$('#rbox').style.color='white';
+  timer=setTimeout(()=>{ready=true;started=performance.now();$('#rbox').textContent='ŞİMDİ!';$('#rbox').style.color='#72ffae'},1000+Math.random()*3000);
+ };
+ $('#rbox').onclick=()=>{
+  if(!ready){clearTimeout(timer);$('#rbox').textContent='Erken bastın!';return}
+  score('Tepki süren: '+Math.round(performance.now()-started)+' ms');ready=false;
+ };
+}
+
+const trivia=[
+ ['Türkiye’nin başkenti?',['İstanbul','Ankara','İzmir'],1],
+ ['Kızıl Gezegen hangisi?',['Venüs','Mars','Jüpiter'],1],
+ ['Bir yılda kaç ay vardır?',['10','11','12'],2],
+ ['En büyük okyanus?',['Atlas','Hint','Pasifik'],2],
+ ['5 × 6 kaçtır?',['25','30','35'],1],
+ ['Dünyanın uydusu?',['Ay','Güneş','Mars'],0],
+ ['Su kaç derecede donar?',['0°C','10°C','100°C'],0]
+];
+function quiz(){
+ let q=[...trivia].sort(()=>Math.random()-.5),i=0,s=0;
+ say('<p class="desc">7 soruluk mini yarışma</p><h3 id="qq"></h3><div id="opts" class="choices"></div>');
+ function next(){
+  if(i===q.length){
+   stage.innerHTML='<div class="big">🏆 '+s+'/7</div><p>Yarışma bitti!</p>';
+   btn('Yeniden oyna',quiz);return;
+  }
+  $('#qq').textContent=(i+1)+'. '+q[i][0];
+  $('#opts').innerHTML='';
+  q[i][1].forEach((x,j)=>{
+   let b=document.createElement('button');b.textContent=x;
+   b.onclick=()=>{if(j===q[i][2])s++;i++;next()};
+   $('#opts').appendChild(b);
+  });
+ }
+ next();
+}
+
+const songs=[
+ ['Tarkan','Kuzu Kuzu','2000’lerin pop klasiği'],
+ ['Sezen Aksu','Gülümse','Türkçe popun unutulmaz sesi'],
+ ['Barış Manço','Gülpembe','Nostaljik bir Anadolu rock şarkısı'],
+ ['Mabel Matiz','Sarmaşık','Modern Türkçe pop'],
+ ['maNga','Bir Kadın Çizeceksin','Rock grubu, Eurovision temsilcisi'],
+ ['Kenan Doğulu','Çakkıdı','Enerjik yaz şarkısı']
+];
+function song(){
+ let s=songs[Math.random()*songs.length|0],hint=0;
+ say('<p class="desc">Bu sürümde telifli ses kaydı yerine ipucu kartları var. Şarkı adını tahmin et!</p><div class="big">🎧</div><h3 id="hint">İpucu: '+s[2]+'</h3><input id="songguess" placeholder="Şarkı adı"><button id="checksong">Kontrol et</button><button class="secondary" id="hintbtn">Yeni ipucu</button>');
+ $('#hintbtn').onclick=()=>{
+  hint++;
+  $('#hint').textContent=hint===1?'Sanatçı: '+s[0]:hint===2?'Şarkı adı '+s[1].length+' harfli':'İlk harfi: '+s[1][0];
+ };
+ $('#checksong').onclick=()=>{
+  let v=$('#songguess').value.trim().toLocaleLowerCase('tr');
+  if(v===s[1].toLocaleLowerCase('tr')){score('Doğru bildin! 🎵');btn('Başka şarkı',song)}
+  else score('Bir daha dene!');
+ };
+}
+
+function dice(){
+ say('<p class="desc">Zarı at, şansını dene!</p><div class="big" id="die">🎲</div>');
+ btn('Zar at',()=>{
+  let n=Math.random()*6|0;
+  $('#die').textContent=['⚀','⚁','⚂','⚃','⚄','⚅'][n];
+  score('Gelen sayı: '+(n+1));
+ });
+}
+
+function colors(){
+ let seq=[],pos=0,started=false,cols=['🟥','🟦','🟩','🟨'];
+ say('<p class="desc">Gösterilen renk dizisini aynı sırayla tekrarla.</p><div class="big" id="cseq">Hazır mısın?</div><div class="choices" id="cbuttons"></div>');
+ function next(){
+  seq.push(Math.random()*4|0);pos=0;
+  $('#cseq').textContent=seq.map(i=>cols[i]).join(' ');
+  setTimeout(()=>$('#cseq').textContent='Sıra sende!',900);
+ }
+ cols.forEach((c,i)=>{
+  let b=document.createElement('button');b.textContent=c;
+  b.onclick=()=>{
+   if(!started)return;
+   if(i!==seq[pos]){
+    started=false;score('Oyun bitti! Seviye: '+seq.length);btn('Tekrar',colors);return;
+   }
+   pos++;
+   if(pos===seq.length)next();
+  };
+  $('#cbuttons').appendChild(b);
+ });
+ btn('Başla',()=>{seq=[];started=true;next()});
+}
+
+function truth(){
+ let qs=['Zeynep’te en sevdiğin 3 özellik?','İlk görüşte ne düşündün?','Birlikte gitmek istediğin yer?','En komik anınız hangisi?','Bir günlüğüne görünmez olsan ne yapardın?','En unutamadığın sürpriz neydi?','Birbirinize bir lakap takın!','Aşk mı, cesaret mi?'];
+ let i=Math.random()*qs.length|0;
+ say('<div class="big">🔥</div><h3>'+qs[i]+'</h3><p class="desc">Sırayla cevaplayın, pas geçmek serbest.</p>');
+ btn('Yeni kart',truth);
+}
+
+function mole(){
+ let t=15,s=0,active=-1;
+ say('<p class="desc">15 saniyede çıkan köstebeğe dokun!</p><div class="big" id="ms">0</div><div class="molegrid" id="mg"></div><p id="mt">15 saniye</p>');
+ let root=$('#mg');
+ for(let i=0;i<9;i++){
+  let b=document.createElement('button');b.className='hole';b.textContent='🕳️';
+  b.onclick=()=>{if(i===active){s++;$('#ms').textContent=s+' puan';active=-1;b.textContent='🕳️'}};
+  root.appendChild(b);
+ }
+ let iv=setInterval(()=>{
+  t--;$('#mt').textContent=t+' saniye';
+  active=Math.random()*9|0;
+  [...root.children].forEach((b,i)=>b.textContent=i===active?'🐹':'🕳️');
+  if(t<=0){clearInterval(iv);active=-1;score('Skor: '+s)}
+ },1000);
+ cleanup=()=>clearInterval(iv);
+}
+
+function snake(){
+ let size=12,body=[[5,5],[4,5],[3,5]],dir=[1,0],food=[8,5],over=false;
+ say('<p class="desc">Yön butonlarıyla yılanı hareket ettir.</p><canvas id="sn" width="300" height="300"></canvas><div class="choices"><button onclick="sdir(0,-1)">↑</button><button onclick="sdir(-1,0)">←</button><button onclick="sdir(1,0)">→</button><button onclick="sdir(0,1)">↓</button></div>');
+ let c=$('#sn'),ctx=c.getContext('2d');
+ window.sdir=(x,y)=>{if(x!==-dir[0]||y!==-dir[1])dir=[x,y]};
+ let iv=setInterval(()=>{
+  if(over)return;
+  let h=[body[0][0]+dir[0],body[0][1]+dir[1]];
+  if(h[0]<0||h[1]<0||h[0]>=size||h[1]>=size||body.some(p=>p[0]===h[0]&&p[1]===h[1])){
+   over=true;score('Oyun bitti! Skor: '+(body.length-3));return;
+  }
+  body.unshift(h);
+  if(h[0]===food[0]&&h[1]===food[1])food=[Math.random()*size|0,Math.random()*size|0];
+  else body.pop();
+  ctx.clearRect(0,0,300,300);
+  ctx.fillStyle='#ff4fd8';ctx.fillRect(food[0]*25,food[1]*25,23,23);
+  ctx.fillStyle='#42f5e9';body.forEach(p=>ctx.fillRect(p[0]*25,p[1]*25,23,23));
+ },180);
+ cleanup=()=>clearInterval(iv);
+}
+
+function tetris(){
+ say('<p class="desc">← → hareket · ↓ hızlandır · döndür butonu</p><canvas id="tc" width="240" height="400"></canvas><div class="choices"><button onclick="tmove(-1)">←</button><button onclick="trot()">⟳</button><button onclick="tmove(1)">→</button><button onclick="tdrop()">↓</button></div>');
+ let c=$('#tc'),x=c.getContext('2d'),W=10,H=20;
+ let grid=Array.from({length:H},()=>Array(W).fill(0));
+ let shapes=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]]];
+ let p={x:3,y:0,s:shapes[Math.random()*5|0]};
+ function collide(px,py,s){
+  return s.some((r,dy)=>r.some((v,dx)=>v&&(grid[py+dy]?.[px+dx]===undefined||grid[py+dy][px+dx])));
+ }
+ function paint(){
+  x.clearRect(0,0,240,400);
+  grid.forEach((r,y)=>r.forEach((v,z)=>{if(v){x.fillStyle='#42f5e9';x.fillRect(z*24,y*20,22,18)}}));
+  p.s.forEach((r,y)=>r.forEach((v,z)=>{if(v){x.fillStyle='#ff4fd8';x.fillRect((p.x+z)*24,(p.y+y)*20,22,18)}}));
+ }
+ function lock(){
+  p.s.forEach((r,y)=>r.forEach((v,z)=>{if(v)grid[p.y+y][p.x+z]=1}));
+  grid=grid.filter(r=>r.some(v=>!v));
+  while(grid.length<H)grid.unshift(Array(W).fill(0));
+  p={x:3,y:0,s:shapes[Math.random()*5|0]};
+  if(collide(p.x,p.y,p.s)){clearInterval(iv);score('Oyun bitti!')}
+ }
+ window.tmove=d=>{if(!collide(p.x+d,p.y,p.s))p.x+=d;paint()};
+ window.trot=()=>{
+  let r=p.s[0].map((_,i)=>p.s.map(row=>row[i]).reverse());
+  if(!collide(p.x,p.y,r))p.s=r;paint();
+ };
+ window.tdrop=()=>{if(!collide(p.x,p.y+1,p.s))p.y++;else lock();paint()};
+ let iv=setInterval(()=>{if(!collide(p.x,p.y+1,p.s))p.y++;else lock();paint()},500);
+ paint();cleanup=()=>clearInterval(iv);
+}
+
+function canvasGame(kind){
+ let isSpace=kind==='space',isRace=kind==='race',isPong=kind==='pong',isBreak=kind==='breakout';
+ say(`<p class="desc">${isSpace?'Ekrana dokunarak ateş et.':isRace?'Aracı sağa sola kaydır, engellerden kaç.':isPong?'Raketi parmağınla yukarı aşağı hareket ettir.':'Topu sektirip tuğlaları kır.'}</p><canvas id="arc" width="320" height="420"></canvas><p id="arcscore">Skor: 0</p><div class="choices"><button id="left">◀</button><button id="right">▶</button><button id="fire">ATEŞ / BAŞLAT</button></div>`);
+ let c=$('#arc'),ctx=c.getContext('2d'),player=145,objs=[],bullets=[],s=0,over=false;
+ let ball={x:160,y:280,dx:3,dy:-3};
+ function draw(){
+  ctx.clearRect(0,0,320,420);
+  if(isRace){
+   ctx.fillStyle='#293451';ctx.fillRect(50,0,220,420);
+   ctx.fillStyle='#fff';for(let y=0;y<420;y+=60)ctx.fillRect(157,y,6,30);
+   ctx.fillStyle='#42f5e9';ctx.fillRect(player,350,28,48);
+   objs.forEach(o=>{ctx.fillStyle='#ff4fd8';ctx.fillRect(o.x,o.y,28,42);o.y+=4});
+   if(objs.some(o=>o.y>320&&Math.abs(o.x-player)<27))over=true;
+   objs=objs.filter(o=>o.y<430);
+   if(Math.random()<.04)objs.push({x:60+Math.random()*190,y:-45});
+  }else if(isSpace){
+   ctx.fillStyle='#42f5e9';ctx.fillRect(player,370,28,25);
+   bullets.forEach(b=>{ctx.fillStyle='#ff4fd8';ctx.fillRect(b.x,b.y,4,12);b.y-=7});
+   objs.forEach(o=>{ctx.fillStyle='#9b6cff';ctx.fillRect(o.x,o.y,24,22);o.y+=1.5});
+   bullets.forEach(b=>objs=objs.filter(o=>{
+    if(b.x>o.x&&b.x<o.x+24&&b.y<o.y+22&&b.y>o.y){s++;b.y=-20;return false}
+    return true;
+   }));
+   if(Math.random()<.025)objs.push({x:Math.random()*290,y:-20});
+   if(objs.some(o=>o.y>355))over=true;
+  }else if(isBreak){
+   ctx.fillStyle='#9b6cff';
+   for(let i=0;i<4;i++)for(let j=0;j<7;j++)if(!objs.some(o=>o.i===i*7+j))ctx.fillRect(12+j*43,25+i*24,38,16);
+   ctx.fillStyle='#42f5e9';ctx.fillRect(player,380,65,10);
+   ctx.beginPath();ctx.arc(ball.x,ball.y,7,0,7);ctx.fill();
+   ball.x+=ball.dx;ball.y+=ball.dy;
+   if(ball.x<7||ball.x>313)ball.dx*=-1;
+   if(ball.y<7)ball.dy*=-1;
+   if(ball.y>370&&ball.x>player&&ball.x<player+65)ball.dy*=-1;
+   if(ball.y>420)over=true;
+   let j=Math.floor((ball.x-12)/43),i=Math.floor((ball.y-25)/24),idx=i*7+j;
+   if(i>=0&&i<4&&j>=0&&j<7&&!objs.some(o=>o.i===idx)&&ball.y<125){objs.push({i:idx});ball.dy*=-1;s++}
+  }else{
+   ctx.fillStyle='#42f5e9';ctx.fillRect(player,190,12,65);
+   ctx.fillStyle='#ff4fd8';ctx.beginPath();ctx.arc(ball.x,ball.y,8,0,7);ctx.fill();
+   ball.x+=ball.dx;ball.y+=ball.dy;
+   if(ball.y<8||ball.y>412)ball.dy*=-1;
+   if(ball.x<22&&ball.y>player&&ball.y<player+65)ball.dx=Math.abs(ball.dx);
+   if(ball.x>298)ball.dx*=-1;
+   if(ball.x<0)over=true;
+  }
+  $('#arcscore').textContent='Skor: '+s;
+  if(over){clearInterval(iv);score('Oyun bitti! Skor: '+s)}
+ }
+ let iv=setInterval(draw,35);
+ function move(d){
+  player=Math.max(0,Math.min(isRace?270:isPong?0:255,player+d));
+  if(isPong)player=Math.max(0,Math.min(355,player+d));
+ }
+ $('#left').onclick=()=>move(-25);
+ $('#right').onclick=()=>move(25);
+ $('#fire').onclick=()=>{if(isSpace)bullets.push({x:player+12,y:365});else if(isBreak){ball.dx=3;ball.dy=-3}};
+ c.addEventListener('pointermove',e=>{
+  let r=c.getBoundingClientRect(),y=(e.clientY-r.top)*420/r.height,xp=(e.clientX-r.left)*320/r.width;
+  if(isPong)player=y-30;else player=xp-14;
+ });
+ c.addEventListener('click',()=>{if(isSpace)bullets.push({x:player+12,y:365})});
+ cleanup=()=>clearInterval(iv);
+}
+function race(){canvasGame('race')}
+function space(){canvasGame('space')}
+function pong(){canvasGame('pong')}
+function breakout(){canvasGame('breakout')}
+
+function mine(){
+ let mines=new Set();
+ while(mines.size<8)mines.add(Math.random()*25|0);
+ let opened=new Set();
+ say('<p class="desc">8 mayın var. 5×5 alanda güvenli kareleri aç.</p><div class="tiles" id="minegrid" style="grid-template-columns:repeat(5,1fr);max-width:310px"></div>');
+ for(let i=0;i<25;i++){
+  let b=document.createElement('button');b.className='tile';
+  b.onclick=()=>{
+   if(opened.has(i))return;
+   opened.add(i);
+   if(mines.has(i)){
+    b.textContent='💣';b.style.background='#a33';score('Mayına bastın!');
+    [...$('#minegrid').children].forEach((x,j)=>{if(mines.has(j))x.textContent='💣';x.disabled=true});
+   }else{
+    let n=[i-5,i+5,i%5?i-1:-1,i%5!==4?i+1:-1].filter(j=>j>=0&&j<25&&mines.has(j)).length;
+    b.textContent=n||'·';b.disabled=true;
+    if(opened.size===17)score('Kazandın!');
+   }
+  };
+  $('#minegrid').appendChild(b);
+ }
+}
+</script>
+</body>
+</html>
+
